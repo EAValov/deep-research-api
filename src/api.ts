@@ -1,7 +1,7 @@
 import cors from 'cors';
 import express, { Request, Response } from 'express';
 
-import { deepResearch, writeFinalAnswer,writeFinalReport } from './deep-research';
+import { runResearchSession } from './session';
 
 const app = express();
 const port = process.env.PORT || 3051;
@@ -24,30 +24,20 @@ app.post('/api/research', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Query is required' });
     }
 
-    log('\nStarting research...\n');
-
-    const { learnings, visitedUrls } = await deepResearch({
+    // Use the new session function
+    const result = await runResearchSession({
       query,
       breadth,
       depth,
-    });
-
-    log(`\n\nLearnings:\n\n${learnings.join('\n')}`);
-    log(
-      `\n\nVisited URLs (${visitedUrls.length}):\n\n${visitedUrls.join('\n')}`,
-    );
-
-    const answer = await writeFinalAnswer({
-      prompt: query,
-      learnings,
+      interactive: false,
     });
 
     // Return the results
     return res.json({
       success: true,
-      answer,
-      learnings,
-      visitedUrls,
+      answer: result.summary, // Using summary as the answer for now
+      learnings: result.learnings,
+      visitedUrls: result.visitedUrls,
     });
   } catch (error: unknown) {
     console.error('Error in research API:', error);
@@ -65,23 +55,21 @@ app.post('/api/generate-report',async(req:Request,res:Response)=>{
     if(!query){
       return res.status(400).json({error:'Query is required'});
     }
-    log('\n Starting research...\n')
-    const {learnings,visitedUrls} = await deepResearch({
+    
+    // Use the new session function
+    const result = await runResearchSession({
       query,
       breadth,
-      depth
-    });
-    log(`\n\nLearnings:\n\n${learnings.join('\n')}`);
-    log(
-      `\n\nVisited URLs (${visitedUrls.length}):\n\n${visitedUrls.join('\n')}`,
-    );
-    const report = await writeFinalReport({
-      prompt:query,
-      learnings,
-      visitedUrls
+      depth,
+      interactive: false,
     });
 
-    return report
+    return res.json({
+      success: true,
+      report: result.reportMarkdown,
+      learnings: result.learnings,
+      visitedUrls: result.visitedUrls,
+    });
     
   }catch(error:unknown){
     console.error("Error in generate report API:",error)
